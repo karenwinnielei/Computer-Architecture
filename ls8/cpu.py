@@ -2,10 +2,13 @@
 
 import sys
 
+SP = 7
 LDI = 0b10000010
 PRN = 0b01000111
 HLT = 0b00000001
 MUL = 0b10100010
+PUSH = 0b01000101
+POP = 0b01000110
 
 class CPU:
     """Main CPU class."""
@@ -99,6 +102,8 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
+        self.reg[SP] = 0xF4
+
         self.running = True
         while self.running:
             ir = self.ram_read(self.pc)
@@ -121,7 +126,23 @@ class CPU:
                 self.alu("MUL", operand_a, operand_b)
                 self.pc += 3
             
-
+            elif ir == PUSH:
+                self.reg[SP] -= 1
+                operand_b = self.reg[operand_a]
+                top_of_stack_addr = self.reg[SP]
+                self.ram[top_of_stack_addr] = operand_b
+                self.pc += 2
+            
+            elif ir == POP:
+                top_of_stack_addr = self.reg[SP]
+                operand_b = self.ram[top_of_stack_addr]
+                self.reg[operand_a] = operand_b
+                self.reg[SP] += 1
+                self.pc += 2
+            
+            else:
+                print(f"Unknown instruction {ir}")
+                sys.exit(3)
 
             
 
