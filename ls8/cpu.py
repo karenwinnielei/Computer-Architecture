@@ -6,9 +6,12 @@ SP = 7
 LDI = 0b10000010
 PRN = 0b01000111
 HLT = 0b00000001
+ADD = 0b10100000
 MUL = 0b10100010
 PUSH = 0b01000101
 POP = 0b01000110
+CALL = 0b01010000
+RET = 0b00010001
 
 class CPU:
     """Main CPU class."""
@@ -99,6 +102,17 @@ class CPU:
             print(" %02X" % self.reg[i], end='')
 
         print()
+    
+    def push_value(self, value):
+        self.reg[SP] -= 1
+        top_of_stack_addr = self.reg[SP]
+        self.ram[top_of_stack_addr] = value
+
+    def pop_value(self):
+        top_of_stack_addr = self.reg[SP]
+        operand_b = self.ram[top_of_stack_addr]
+        self.reg[SP] += 1
+        return operand_b
 
     def run(self):
         """Run the CPU."""
@@ -121,24 +135,39 @@ class CPU:
                 print(self.reg[operand_a])
                 self.pc += 2
             
+            elif ir == ADD:
+                self.alu("ADD", operand_a, operand_b)
+                self.pc += 3
             elif ir == MUL:
                 # self.reg[operand_a] = self.reg[operand_a] * self.reg[operand_b]
                 self.alu("MUL", operand_a, operand_b)
                 self.pc += 3
             
             elif ir == PUSH:
-                self.reg[SP] -= 1
+                # self.reg[SP] -= 1
                 operand_b = self.reg[operand_a]
-                top_of_stack_addr = self.reg[SP]
-                self.ram[top_of_stack_addr] = operand_b
+                # top_of_stack_addr = self.reg[SP]
+                # self.ram[top_of_stack_addr] = operand_b
+                self.push_value(operand_b)
                 self.pc += 2
             
             elif ir == POP:
-                top_of_stack_addr = self.reg[SP]
-                operand_b = self.ram[top_of_stack_addr]
+                # top_of_stack_addr = self.reg[SP]
+                # operand_b = self.ram[top_of_stack_addr]
+                operand_b = self.pop_value()
                 self.reg[operand_a] = operand_b
-                self.reg[SP] += 1
+                # self.reg[SP] += 1
                 self.pc += 2
+            
+            elif ir == CALL:
+                return_addr = self.pc + 2
+                self.push_value(return_addr)
+                operand_b = self.reg[operand_a]
+                self.pc = operand_b
+
+            elif ir == RET:
+                return_addr = self.pop_value()
+                self.pc = return_addr
             
             else:
                 print(f"Unknown instruction {ir}")
