@@ -12,6 +12,15 @@ PUSH = 0b01000101
 POP = 0b01000110
 CALL = 0b01010000
 RET = 0b00010001
+CMP = 0b10100111
+JMP = 0b01010100
+JEQ = 0b01010101
+JNE = 0b01010110
+
+# `FL` bits: `00000LGE`
+L = 0b100
+G = 0b010
+E = 0b001
 
 class CPU:
     """Main CPU class."""
@@ -21,6 +30,7 @@ class CPU:
         self.reg = [0] * 8
         self.pc = 0
         self.ram = [0] * 256
+        self.fl = 0
     
     def ram_read(self, MAR):
         return self.ram[MAR]
@@ -30,24 +40,6 @@ class CPU:
 
     def load(self):
         """Load a program into memory."""
-
-        # address = 0
-
-        # For now, we've just hardcoded a program:
-
-        # program = [
-        #     # From print8.ls8
-        #     0b10000010, # LDI R0,8
-        #     0b00000000,
-        #     0b00001000,
-        #     0b01000111, # PRN R0
-        #     0b00000000,
-        #     0b00000001, # HLT
-        # ]
-
-        # for instruction in program:
-        #     self.ram[address] = instruction
-        #     address += 1
         
         if len(sys.argv) != 2:
             print("usage: ls8.py filename")
@@ -80,6 +72,13 @@ class CPU:
             self.reg[reg_a] += self.reg[reg_b]
         elif op == "MUL": 
             self.reg[reg_a] *= self.reg[reg_b] 
+        elif op == "CMP":
+            if self.reg[reg_a] < self.reg[reg_b]:
+                self.fl = L
+            elif self.reg[reg_a] > self.reg[reg_b]:
+                self.fl = G
+            elif self.reg[reg_a] == self.reg[reg_b]:
+                self.fl = E
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -113,6 +112,11 @@ class CPU:
         operand_b = self.ram[top_of_stack_addr]
         self.reg[SP] += 1
         return operand_b
+    
+    def jump_value(self):
+        operand_a = self.ram_read(self.pc + 1)
+        jump = self.reg[operand_a]
+        self.pc = jump
 
     def run(self):
         """Run the CPU."""
@@ -138,25 +142,19 @@ class CPU:
             elif ir == ADD:
                 self.alu("ADD", operand_a, operand_b)
                 self.pc += 3
+
             elif ir == MUL:
-                # self.reg[operand_a] = self.reg[operand_a] * self.reg[operand_b]
                 self.alu("MUL", operand_a, operand_b)
                 self.pc += 3
             
             elif ir == PUSH:
-                # self.reg[SP] -= 1
                 operand_b = self.reg[operand_a]
-                # top_of_stack_addr = self.reg[SP]
-                # self.ram[top_of_stack_addr] = operand_b
                 self.push_value(operand_b)
                 self.pc += 2
             
             elif ir == POP:
-                # top_of_stack_addr = self.reg[SP]
-                # operand_b = self.ram[top_of_stack_addr]
                 operand_b = self.pop_value()
                 self.reg[operand_a] = operand_b
-                # self.reg[SP] += 1
                 self.pc += 2
             
             elif ir == CALL:
@@ -169,6 +167,25 @@ class CPU:
                 return_addr = self.pop_value()
                 self.pc = return_addr
             
+            elif ir == CMP:
+                self.alu("CMP", operand_a, operand_b)
+                self.pc += 3
+            
+            elif ir == JMP:
+                self.jump_value()
+
+            elif ir == JEQ:
+                if self.fl == E:
+                    self.jump_value()
+                else:
+                    self.pc += 2
+            
+            elif ir == JNE:
+                if self.fl != E:
+                    self.jump_value()
+                else:
+                    self.pc += 2
+
             else:
                 print(f"Unknown instruction {ir}")
                 sys.exit(3)
